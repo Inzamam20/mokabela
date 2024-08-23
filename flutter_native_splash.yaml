@@ -1,0 +1,24 @@
+# flutter_native_splash:
+#   image: assets/p10_splash-removebg-preview.png
+#   color: "#1565C0"
+#   android: true
+#   ios: true
+#   web: false
+#   android_12:
+#     image: assets/p10_splash-removebg-preview.png
+#     color: "#1565C0"
+
+
+flutter_native_splash:
+  image: assets/p10_splash-removebg-preview.png
+  color: "#1565C0"
+  android: true
+  ios: true
+  web: false
+  android_12:
+    image: assets/p10_splash-removebg-preview.png
+    color: "#1565C0"
+  # New parameters
+  android_gravity: center
+  ios_content_mode: scaleAspectFit
+  fullscreen: true
