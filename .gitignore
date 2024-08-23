@@ -12,8 +12,12 @@ pubspec.lock
 doc/api/
 
 # dotenv environment variables file
+<<<<<<< HEAD
 # .env*
 *.env
+=======
+.env*
+>>>>>>> fd5ffbb61938d17e5d2185181f4dc889c5ca1b0e
 
 # Avoid committing generated Javascript files:
 *.dart.js
@@ -26,6 +30,7 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+<<<<<<< HEAD
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -47,3 +52,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+=======
+>>>>>>> fd5ffbb61938d17e5d2185181f4dc889c5ca1b0e
