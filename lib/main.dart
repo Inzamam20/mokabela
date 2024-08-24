@@ -14,12 +14,13 @@ import 'package:disaster_hackathon_app/pages/signup_page.dart';
 import 'package:disaster_hackathon_app/pages/track_resource.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   // WidgetsFlutterBinding.ensureInitialized();
-  // WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  // FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await dotenv.load(fileName: ".env");
 
@@ -32,7 +33,7 @@ void main() async {
   );
 
   runApp(const MyApp());
-  // FlutterNativeSplash.remove();
+  FlutterNativeSplash.remove();
 }
 
 // Get a reference your Supabase client

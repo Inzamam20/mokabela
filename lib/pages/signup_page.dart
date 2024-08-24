@@ -61,11 +61,29 @@ class _SignUpPageState extends State<SignUpPage> {
         throw Exception('No ID Token found.');
       }
 
-      return await supabase.auth.signInWithIdToken(
+      // Sign in with Google
+      final AuthResponse response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+
+      // Update user metadata after successful sign-in
+      final userMetaData = {
+        'name': googleUser.displayName,
+        'email': googleUser.email,
+        'gender': 'Male', // You can get this from a form or other source
+        'dob': '2000-01-01', // You can get this from a form or other source
+        'address': 'Dhanmondi', // You can get this from a form or other source
+        'phone_no':
+            '01xxxxxxxxx', // You can get this from a form or other source
+      };
+
+      final UserAttributes attributes = UserAttributes(data: userMetaData);
+
+      await supabase.auth.updateUser(attributes);
+
+      return response;
     } catch (e) {
       // Improved error handling logic
       throw Exception('Google Sign-In failed: ${e.toString()}');
@@ -140,8 +158,7 @@ class _SignUpPageState extends State<SignUpPage> {
       String errorMessage = 'An unknown error occurred';
 
       if (e is AuthException) {
-        errorMessage =
-            'AuthException: ${e.message ?? 'No message provided'} $e';
+        errorMessage = 'AuthException: ${e.message} $e';
       } else if (e is Exception) {
         errorMessage = 'Exception: ${e.toString()}';
       }
@@ -319,6 +336,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         );
                       }
                     } catch (e) {
+                      print('Throwed an exception: ${e.toString()}');
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content:

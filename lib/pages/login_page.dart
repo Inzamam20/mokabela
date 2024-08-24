@@ -1,10 +1,15 @@
+import 'package:disaster_hackathon_app/main.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -18,8 +23,8 @@ class LoginPage extends StatelessWidget {
         ),
         centerTitle: true,
         backgroundColor: Colors.white, // Set AppBar background to white
-        iconTheme:
-            const IconThemeData(color: Colors.black), // Set back icon color to black
+        iconTheme: const IconThemeData(
+            color: Colors.black), // Set back icon color to black
         elevation: 0, // Remove shadow for a cleaner look
       ),
       backgroundColor:
@@ -44,6 +49,7 @@ class LoginPage extends StatelessWidget {
 
                 // Email TextField
                 TextField(
+                  controller: emailController,
                   decoration: _buildInputDecoration(
                     label: 'Email',
                     suffixText: '', // No suffix needed
@@ -54,6 +60,7 @@ class LoginPage extends StatelessWidget {
 
                 // Password TextField
                 TextField(
+                  controller: passwordController,
                   obscureText: true,
                   decoration: _buildInputDecoration(
                     label: 'Password',
@@ -80,17 +87,21 @@ class LoginPage extends StatelessWidget {
 
                 // Sign In Button
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(
-                        context, '/home'); // Navigate to HomePage on sign in
+                  onPressed: () async {
+                    // Call the sign-in method
+                    await _signInWithEmail(
+                      context,
+                      emailController.text.trim(),
+                      passwordController.text.trim(),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade800,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 15.0, horizontal: 30.0),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15.0, horizontal: 30.0),
                   ),
                   child: const Text(
                     'Sign In',
@@ -118,8 +129,8 @@ class LoginPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15.0, horizontal: 20.0),
                   ),
                 ),
                 const SizedBox(height: 20.0),
@@ -146,6 +157,50 @@ class LoginPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // Method for signing in with email and password
+  Future<void> _signInWithEmail(
+      BuildContext context, String email, String password) async {
+    try {
+      final AuthResponse res = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      final User? user = res.user;
+
+      if (user != null) {
+        // Sign-in successful, navigate to home page
+        Navigator.pushNamed(context, '/home');
+      } else {
+        // Handle the case when user is null
+        _showErrorDialog(context, 'Sign-in failed. Please try again.');
+      }
+    } catch (e) {
+      // Handle the error properly
+      _showErrorDialog(context, 'Error: ${e.toString()}');
+    }
+  }
+
+  // Helper method to show error dialog
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Login Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
