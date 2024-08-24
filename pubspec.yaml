@@ -41,6 +41,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_splash_screen: ^3.0.0
   flutter_native_splash: ^2.4.0
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:

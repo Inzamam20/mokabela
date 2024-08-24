@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:disaster_hackathon_app/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -17,6 +22,55 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      // Load environment variables
+      await dotenv.load();
+
+      final String iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']!;
+      final String androidClientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID']!;
+      final String webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']!;
+
+      // Use the correct client ID based on the platform
+      final String clientId =
+          Platform.isAndroid ? androidClientId : iosClientId;
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: clientId,
+        serverClientId: webClientId,
+        scopes: [
+          'email',
+          'profile',
+        ],
+      );
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google Sign-In aborted.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null) {
+        throw Exception('No Access Token found.');
+      }
+      if (idToken == null) {
+        throw Exception('No ID Token found.');
+      }
+
+      return await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+    } catch (e) {
+      // Improved error handling logic
+      throw Exception('Google Sign-In failed: ${e.toString()}');
+    }
+  }
 
   // Method to handle date selection
   Future<void> _selectDate(BuildContext context) async {
@@ -37,59 +91,65 @@ class _SignUpPageState extends State<SignUpPage> {
   Future<void> _signUp() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+    final phoneNo = _phoneController.text.trim();
+    final address = _addressController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    // Check if any field is empty
+    if (email.isEmpty ||
+        password.isEmpty ||
+        name.isEmpty ||
+        phoneNo.isEmpty ||
+        _selectedDate == null ||
+        address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email and password cannot be empty')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Prepare data to be inserted into the `user` table
-    final userData = {
-      'email_address': email,
-      'name': _nameController.text.trim(),
-      'password': password, // Store the password (consider hashing)
-      'phone_number': _phoneController.text.trim(),
-      'gender': _selectedGender, // Store gender as text
-      'dob': _selectedDate
-          ?.toIso8601String()
-          .substring(0, 10), // Date in 'YYYY-MM-DD' format
-      'address': _addressController.text.trim(),
-      'created_at':
-          DateTime.now().toIso8601String(), // Store the current timestamp
+    final userMetaData = {
+      'name': name,
+      'phone_no': phoneNo,
+      'gender': _selectedGender,
+      'dob': _selectedDate?.toIso8601String(),
+      'address': address,
     };
 
-    // Insert the data into the `user` table
     try {
-      final response =
-          await Supabase.instance.client.from('user').insert(userData);
+      final AuthResponse response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: userMetaData,
+      );
 
-      if (response == null) {
-        print('Supabase response is null');
+      if (response.user == null) {
+        // Handle the case where no user is returned
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No response from Supabase')),
+          SnackBar(
+              content:
+                  Text('Sign-up failed: ${response.user ?? 'Unknown error'}')),
         );
         return;
       }
 
-      if (response.error != null) {
-        // An error occurred
-        print('Supabase error: ${response.error!.message}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error!.message)),
-        );
-      } else {
-        // No errors, proceed to the next step
-        print('User created successfully');
-        print(response.data);
-        Navigator.pushNamed(context, '/home');
-      }
+      print('User created successfully: ${response.user!.id}');
+      Navigator.pushNamed(context, '/home');
     } catch (e) {
-      // Catch and print any other exceptions
-      print('Sign-up error: $e');
+      // Handle error based on the exception type
+      String errorMessage = 'An unknown error occurred';
+
+      if (e is AuthException) {
+        errorMessage =
+            'AuthException: ${e.message ?? 'No message provided'} $e';
+      } else if (e is Exception) {
+        errorMessage = 'Exception: ${e.toString()}';
+      }
+
+      print('Sign-up error: $errorMessage \nData:${userMetaData.toString()}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during sign-up')),
+        SnackBar(
+            content: Text('An error occurred during sign-up: $errorMessage')),
       );
     }
   }
@@ -246,8 +306,25 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 // Sign Up with Google Button
                 OutlinedButton.icon(
-                  onPressed: () {
-                    // Handle Google sign up
+                  onPressed: () async {
+                    try {
+                      final AuthResponse response = await signInWithGoogle();
+                      if (response.user != null) {
+                        Navigator.pushNamed(context, '/home');
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Sign-in failed. Please try again.')),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('An error occurred: ${e.toString()}')),
+                      );
+                    }
                   },
                   icon: Image.asset(
                     'assets/icons/google_icon.png',
@@ -255,7 +332,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     width: 24.0,
                   ),
                   label: const Text(
-                    'Sign Up with Google',
+                    'Sign in with Google',
                     style: TextStyle(fontSize: 16.0, color: Colors.red),
                   ),
                   style: OutlinedButton.styleFrom(
