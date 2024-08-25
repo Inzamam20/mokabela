@@ -1,0 +1,12 @@
+SUPABASE_URL=https://hygzrabyylxfjxwwriza.supabase.co
+SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z3pyYWJ5eWx4Zmp4d3dyaXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQzMTYzMDYsImV4cCI6MjAzOTg5MjMwNn0.nX1912cLeVe7HvTyCNWlZZIX4BWDV_pIQcohjU6KMcE'
+GOOGLE_WEB_CLIENT_ID=845517213192-6hushnkgribgpik86anjkov01t35r730.apps.googleusercontent.com
+GOOGLE_IOS_CLIENT_ID=845517213192-gg279mmr3eo56uvtp0k9tbpvmmsg9m47.apps.googleusercontent.com
+GOOGLE_ANDROID_CLIENT_ID=845517213192-0dhqas7g50bau7m52uk0ajkrvcf00vvo.apps.googleusercontent.com
+
+
+
+GRADLE_VERSION=gradle-8.10-bin.zip
+PACKAGE_NAME=com.example.disaster_hackathon_app
+# SHA1 for debug & release Variant
+SHA1: 6B:F7:A8:CB:99:19:72:30:69:BD:55:04:69:0A:26:8C:63:5D:F9:AC
