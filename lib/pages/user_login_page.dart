@@ -1,10 +1,14 @@
+import 'package:disaster_hackathon_app/main.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserLoginPage extends StatelessWidget {
   const UserLoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -12,18 +16,15 @@ class UserLoginPage extends StatelessWidget {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color:
-                Colors.black, // Set the text color to black to match HomePage
+            color: Colors.black, // Set the text color to black to match HomePage
           ),
         ),
         centerTitle: true,
         backgroundColor: Colors.white, // Set AppBar background to white
-        iconTheme: const IconThemeData(
-            color: Colors.black), // Set back icon color to black
+        iconTheme: const IconThemeData(color: Colors.black), // Set back icon color to black
         elevation: 0, // Remove shadow for a cleaner look
       ),
-      backgroundColor:
-          Colors.blue.shade100, // Same as scaffoldBackgroundColor in main.dart
+      backgroundColor: Colors.blue.shade100, // Same as scaffoldBackgroundColor in main.dart
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Center(
@@ -67,6 +68,7 @@ class UserLoginPage extends StatelessWidget {
                     children: [
                       // Email TextField
                       TextField(
+                        controller: emailController,
                         decoration: _buildInputDecoration(
                           label: 'Email',
                           suffixText: '', // No suffix needed
@@ -77,6 +79,7 @@ class UserLoginPage extends StatelessWidget {
 
                       // Password TextField
                       TextField(
+                        controller: passwordController,
                         obscureText: true,
                         decoration: _buildInputDecoration(
                           label: 'Password',
@@ -91,8 +94,7 @@ class UserLoginPage extends StatelessWidget {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            Navigator.pushNamed(
-                                context, '/user_forgotpassword');
+                            Navigator.pushNamed(context, '/user_forgotpassword');
                           },
                           child: Text(
                             'Forgot Password?',
@@ -104,9 +106,13 @@ class UserLoginPage extends StatelessWidget {
 
                       // Sign In Button
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context,
-                              '/home'); // Navigate to HomePage on sign in
+                        onPressed: () async {
+                          // Call the sign-in method
+                          await _signInWithEmail(
+                            context,
+                            emailController.text.trim(),
+                            passwordController.text.trim(),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.shade800,
@@ -160,8 +166,7 @@ class UserLoginPage extends StatelessWidget {
                     const Text("Don't have an account?"),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(
-                            context, '/user_signup'); // Navigate to SignUpPage
+                        Navigator.pushNamed(context, '/user_signup'); // Navigate to SignUpPage
                       },
                       child: Text(
                         'Sign Up',
@@ -178,6 +183,49 @@ class UserLoginPage extends StatelessWidget {
     );
   }
 
+  // Method for signing in with email and password
+  Future<void> _signInWithEmail(BuildContext context, String email, String password) async {
+    try {
+      final AuthResponse res = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      final User? user = res.user;
+
+      if (user != null) {
+        // Sign-in successful, navigate to home page
+        Navigator.pushNamed(context, '/home');
+      } else {
+        // Handle the case when user is null
+        _showErrorDialog(context, 'Sign-in failed. Please try again.');
+      }
+    } catch (e) {
+      // Handle the error properly
+      _showErrorDialog(context, 'Error: ${e.toString()}');
+    }
+  }
+
+  // Helper method to show error dialog
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Login Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Helper method to create a consistent InputDecoration
   InputDecoration _buildInputDecoration({
     required String label,
@@ -187,8 +235,7 @@ class UserLoginPage extends StatelessWidget {
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle:
-          TextStyle(color: Colors.blue.shade800), // Customize label color
+      labelStyle: TextStyle(color: Colors.blue.shade800), // Customize label color
       hintText: hintText,
       helperText: helperText,
       helperStyle: const TextStyle(color: Colors.blueGrey), // Helper text style
@@ -198,17 +245,13 @@ class UserLoginPage extends StatelessWidget {
       filled: true,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade300), // Outline border color and width
+        borderSide: BorderSide(color: Colors.blue.shade300), // Outline border color and width
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade800,
-            width: 2.0), // Focused border color and width
+        borderSide: BorderSide(color: Colors.blue.shade800, width: 2.0), // Focused border color and width
       ),
-      contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 20.0), // Adjust content padding
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // Adjust content padding
     );
   }
 }

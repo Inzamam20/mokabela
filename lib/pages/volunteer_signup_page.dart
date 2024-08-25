@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:disaster_hackathon_app/main.dart';
 
 class VolunteerSignupPage extends StatefulWidget {
   const VolunteerSignupPage({super.key});
@@ -37,38 +41,41 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
   Future<void> _signUp() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+    final phoneNo = _phoneController.text.trim();
+    final address = _addressController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    // Check if any field is empty
+    if (email.isEmpty ||
+        password.isEmpty ||
+        name.isEmpty ||
+        phoneNo.isEmpty ||
+        _selectedDate == null ||
+        address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email and password cannot be empty')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Prepare data to be inserted into the `user` table
     final userData = {
       'email_address': email,
-      'name': _nameController.text.trim(),
-      'password': password, // Store the password (consider hashing)
-      'phone_number': _phoneController.text.trim(),
-      'gender': _selectedGender, // Store gender as text
-      'dob': _selectedDate
-          ?.toIso8601String()
-          .substring(0, 10), // Date in 'YYYY-MM-DD' format
-      'address': _addressController.text.trim(),
-      'created_at':
-          DateTime.now().toIso8601String(), // Store the current timestamp
+      'name': name,
+      'password': password, // Consider using a hash for security
+      'phone_number': phoneNo,
+      'gender': _selectedGender,
+      'dob': _selectedDate?.toIso8601String().substring(0, 10), // 'YYYY-MM-DD' format
+      'address': address,
+      'created_at': DateTime.now().toIso8601String(), // Store the current timestamp
     };
 
-    // Insert the data into the `user` table
     try {
-      final response =
-          await Supabase.instance.client.from('user').insert(userData);
+      final response = await Supabase.instance.client.from('user').insert(userData);
 
       if (response == null) {
         print('Supabase response is null');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No response from Supabase')),
+          const SnackBar(content: Text('No response from Supabase')),
         );
         return;
       }
@@ -89,8 +96,74 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
       // Catch and print any other exceptions
       print('Sign-up error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during sign-up')),
+        const SnackBar(content: Text('An error occurred during sign-up')),
       );
+    }
+  }
+
+  // Google sign-in method
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      // Load environment variables
+      await dotenv.load();
+
+      final String iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']!;
+      final String androidClientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID']!;
+      final String webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']!;
+
+      // Use the correct client ID based on the platform
+      final String clientId = Platform.isAndroid ? androidClientId : iosClientId;
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: clientId,
+        serverClientId: webClientId,
+        scopes: [
+          'email',
+          'profile',
+        ],
+      );
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google Sign-In aborted.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null) {
+        throw Exception('No Access Token found.');
+      }
+      if (idToken == null) {
+        throw Exception('No ID Token found.');
+      }
+
+      // Sign in with Google
+      final AuthResponse response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      // Update user metadata after successful sign-in
+      final userMetaData = {
+        'name': googleUser.displayName,
+        'email': googleUser.email,
+        'gender': 'Male', // Default value or you can get this from a form
+        'dob': '2000-01-01', // Default value or you can get this from a form
+        'address': 'Dhanmondi', // Default value or you can get this from a form
+        'phone_no': '01xxxxxxxxx', // Default value or you can get this from a form
+      };
+
+      final UserAttributes attributes = UserAttributes(data: userMetaData);
+
+      await supabase.auth.updateUser(attributes);
+
+      return response;
+    } catch (e) {
+      // Improved error handling logic
+      throw Exception('Google Sign-In failed: ${e.toString()}');
     }
   }
 
@@ -108,8 +181,7 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
         ),
         centerTitle: true,
         backgroundColor: Colors.white, // Match theme of login page
-        iconTheme: const IconThemeData(
-            color: Colors.black), // Match theme of login page
+        iconTheme: const IconThemeData(color: Colors.black), // Match theme of login page
         elevation: 0, // Match theme of login page
       ),
       backgroundColor: Colors.blue.shade100, // Match theme of login page
@@ -254,8 +326,7 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
                       ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.blue.shade800, // Match theme of login page
+                          backgroundColor: Colors.blue.shade800, // Match theme of login page
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -271,8 +342,22 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
 
                       // Sign Up with Google Button
                       OutlinedButton.icon(
-                        onPressed: () {
-                          // Handle Google sign up
+                        onPressed: () async {
+                          try {
+                            final AuthResponse response = await signInWithGoogle();
+                            if (response.user != null) {
+                              Navigator.pushNamed(context, '/home');
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Sign-in failed. Please try again.')),
+                              );
+                            }
+                          } catch (e) {
+                            print('Error: ${e.toString()}');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('An error occurred: ${e.toString()}')),
+                            );
+                          }
                         },
                         icon: Image.asset(
                           'assets/icons/google_icon.png', // Path to the Google icon image
@@ -305,9 +390,7 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
                             },
                             child: Text(
                               'Sign In',
-                              style: TextStyle(
-                                  color: Colors.blue
-                                      .shade800), // Match theme of login page
+                              style: TextStyle(color: Colors.blue.shade800), // Match theme of login page
                             ),
                           ),
                         ],
@@ -332,8 +415,7 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle:
-          TextStyle(color: Colors.blue.shade800), // Match theme of login page
+      labelStyle: TextStyle(color: Colors.blue.shade800), // Match theme of login page
       hintText: hintText,
       helperText: helperText,
       helperStyle: const TextStyle(color: Colors.blueGrey), // Helper text style
@@ -343,18 +425,13 @@ class _VolunteerSignupPageState extends State<VolunteerSignupPage> {
       filled: true,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade300,
-            width: 1.0), // Match theme of login page
+        borderSide: BorderSide(color: Colors.blue.shade300, width: 1.0), // Match theme of login page
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade800,
-            width: 2.0), // Match theme of login page
+        borderSide: BorderSide(color: Colors.blue.shade800, width: 2.0), // Match theme of login page
       ),
-      contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 20.0), // Adjust content padding
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // Adjust content padding
     );
   }
 }

@@ -25,6 +25,7 @@ import 'package:disaster_hackathon_app/pages/hotline.dart';
 import 'package:disaster_hackathon_app/pages/prepare_page.dart';
 
 void main() async {
+  // WidgetsFlutterBinding.ensureInitialized();
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 

@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:disaster_hackathon_app/main.dart';
 
 class UserSignUpPage extends StatefulWidget {
   const UserSignUpPage({super.key});
@@ -37,60 +41,130 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
   Future<void> _signUp() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+    final phoneNo = _phoneController.text.trim();
+    final address = _addressController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    // Check if any field is empty
+    if (email.isEmpty ||
+        password.isEmpty ||
+        name.isEmpty ||
+        phoneNo.isEmpty ||
+        _selectedDate == null ||
+        address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email and password cannot be empty')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Prepare data to be inserted into the `user` table
-    final userData = {
-      'email_address': email,
-      'name': _nameController.text.trim(),
-      'password': password, // Store the password (consider hashing)
-      'phone_number': _phoneController.text.trim(),
-      'gender': _selectedGender, // Store gender as text
-      'dob': _selectedDate
-          ?.toIso8601String()
-          .substring(0, 10), // Date in 'YYYY-MM-DD' format
-      'address': _addressController.text.trim(),
-      'created_at':
-          DateTime.now().toIso8601String(), // Store the current timestamp
+    final userMetaData = {
+      'name': name,
+      'phone_no': phoneNo,
+      'gender': _selectedGender,
+      'dob': _selectedDate?.toIso8601String(),
+      'address': address,
     };
 
-    // Insert the data into the `user` table
     try {
-      final response =
-          await Supabase.instance.client.from('user').insert(userData);
+      final AuthResponse response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: userMetaData,
+      );
 
-      if (response == null) {
-        print('Supabase response is null');
+      if (response.user == null) {
+        // Handle the case where no user is returned
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No response from Supabase')),
+          SnackBar(
+              content:
+                  Text('Sign-up failed: ${response.user ?? 'Unknown error'}')),
         );
         return;
       }
 
-      if (response.error != null) {
-        // An error occurred
-        print('Supabase error: ${response.error!.message}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error!.message)),
-        );
-      } else {
-        // No errors, proceed to the next step
-        print('User created successfully');
-        print(response.data);
-        Navigator.pushNamed(context, '/home');
-      }
+      print('User created successfully: ${response.user!.id}');
+      Navigator.pushNamed(context, '/home');
     } catch (e) {
-      // Catch and print any other exceptions
-      print('Sign-up error: $e');
+      // Handle error based on the exception type
+      String errorMessage = 'An unknown error occurred';
+
+      if (e is AuthException) {
+        errorMessage = 'AuthException: ${e.message} $e';
+      } else if (e is Exception) {
+        errorMessage = 'Exception: ${e.toString()}';
+      }
+
+      print('Sign-up error: $errorMessage \nData:${userMetaData.toString()}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during sign-up')),
+        SnackBar(content: Text('An error occurred during sign-up: $errorMessage')),
       );
+    }
+  }
+
+  // Updated Google sign-in method
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      // Load environment variables
+      await dotenv.load();
+
+      final String iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']!;
+      final String androidClientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID']!;
+      final String webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']!;
+
+      // Use the correct client ID based on the platform
+      final String clientId = Platform.isAndroid ? androidClientId : iosClientId;
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: clientId,
+        serverClientId: webClientId,
+        scopes: [
+          'email',
+          'profile',
+        ],
+      );
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google Sign-In aborted.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null) {
+        throw Exception('No Access Token found.');
+      }
+      if (idToken == null) {
+        throw Exception('No ID Token found.');
+      }
+
+      // Sign in with Google
+      final AuthResponse response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      // Update user metadata after successful sign-in
+      final userMetaData = {
+        'name': googleUser.displayName,
+        'email': googleUser.email,
+        'gender': 'Male', // You can get this from a form or other source
+        'dob': '2000-01-01', // You can get this from a form or other source
+        'address': 'Dhanmondi', // You can get this from a form or other source
+        'phone_no': '01xxxxxxxxx', // You can get this from a form or other source
+      };
+
+      final UserAttributes attributes = UserAttributes(data: userMetaData);
+
+      await supabase.auth.updateUser(attributes);
+
+      return response;
+    } catch (e) {
+      // Improved error handling logic
+      throw Exception('Google Sign-In failed: ${e.toString()}');
     }
   }
 
@@ -108,8 +182,7 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
         ),
         centerTitle: true,
         backgroundColor: Colors.white, // Match theme of login page
-        iconTheme: const IconThemeData(
-            color: Colors.black), // Match theme of login page
+        iconTheme: const IconThemeData(color: Colors.black), // Match theme of login page
         elevation: 0, // Match theme of login page
       ),
       backgroundColor: Colors.blue.shade100, // Match theme of login page
@@ -254,8 +327,7 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
                       ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.blue.shade800, // Match theme of login page
+                          backgroundColor: Colors.blue.shade800, // Match theme of login page
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -271,8 +343,22 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
 
                       // Sign Up with Google Button
                       OutlinedButton.icon(
-                        onPressed: () {
-                          // Handle Google sign up
+                        onPressed: () async {
+                          try {
+                            final AuthResponse response = await signInWithGoogle();
+                            if (response.user != null) {
+                              Navigator.pushNamed(context, '/home');
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Sign-in failed. Please try again.')),
+                              );
+                            }
+                          } catch (e) {
+                            print('Error: ${e.toString()}');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('An error occurred: ${e.toString()}')),
+                            );
+                          }
                         },
                         icon: Image.asset(
                           'assets/icons/google_icon.png', // Path to the Google icon image
@@ -305,9 +391,7 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
                             },
                             child: Text(
                               'Sign In',
-                              style: TextStyle(
-                                  color: Colors.blue
-                                      .shade800), // Match theme of login page
+                              style: TextStyle(color: Colors.blue.shade800), // Match theme of login page
                             ),
                           ),
                         ],
@@ -332,8 +416,7 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle:
-          TextStyle(color: Colors.blue.shade800), // Match theme of login page
+      labelStyle: TextStyle(color: Colors.blue.shade800), // Match theme of login page
       hintText: hintText,
       helperText: helperText,
       helperStyle: const TextStyle(color: Colors.blueGrey), // Helper text style
@@ -343,18 +426,13 @@ class _UserSignUpPageState extends State<UserSignUpPage> {
       filled: true,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade300,
-            width: 1.0), // Match theme of login page
+        borderSide: BorderSide(color: Colors.blue.shade300, width: 1.0), // Match theme of login page
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(
-            color: Colors.blue.shade800,
-            width: 2.0), // Match theme of login page
+        borderSide: BorderSide(color: Colors.blue.shade800, width: 2.0), // Match theme of login page
       ),
-      contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 20.0), // Adjust content padding
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // Adjust content padding
     );
   }
 }
