@@ -15,7 +15,7 @@ class _HomePageState extends State<HomePage> {
   bool isHovered = false;
 
   final Map<String, String> routeMap = {
-    'Send resource': '/sendresource',
+    'Resource Categories': '/resourcecategories',
     'Seek resource': '/seekresource',
     'Track resource': '/trackresource',
     'Most requested resource': '/mostrequestedresource',
@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _buildGridItem('Send resource', Icons.send),
+                  _buildGridItem('Resource Categories', Icons.indeterminate_check_box),
                   _buildGridItem('Seek resource', Icons.search),
                   _buildGridItem('Track resource', Icons.track_changes),
                   _buildGridItem('Most requested resource', Icons.star),

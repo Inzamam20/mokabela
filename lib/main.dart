@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:disaster_hackathon_app/pages/user_selection_page.dart';
 import 'package:disaster_hackathon_app/pages/user_login_page.dart';
@@ -14,7 +15,7 @@ import 'package:disaster_hackathon_app/pages/volunteer_reset_password_page.dart'
 import 'package:disaster_hackathon_app/pages/volunteer_forgot_password_page.dart';
 import 'package:disaster_hackathon_app/pages/volunteer_otp_verification_page.dart';
 import 'package:disaster_hackathon_app/pages/home_page.dart';
-import 'package:disaster_hackathon_app/pages/send_resource.dart';
+import 'package:disaster_hackathon_app/pages/resource_categories_page.dart';
 import 'package:disaster_hackathon_app/pages/seek_resource.dart';
 import 'package:disaster_hackathon_app/pages/notification.dart';
 import 'package:disaster_hackathon_app/pages/profile.dart';
@@ -39,7 +40,7 @@ void main() async {
     anonKey: anonKey,
   );
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: const MyApp()));
   FlutterNativeSplash.remove();
 }
 
@@ -69,7 +70,7 @@ class MyApp extends StatelessWidget {
         '/volunteer_forgotpassword': (context) => VolunteerForgotPasswordPage(),
         '/volunteer_otp': (context) => VolunteerOTPVerificationPage(),
         '/home': (context) => HomePage(),
-        '/sendresource': (context) => SendResourcePage(),
+        '/resourcecategories': (context) => ResourceCategoriesPage(),
         '/seekresource': (context) => SeekResourcePage(),
         '/notification': (context) => NotificationPage(),
         '/profile': (context) => ProfilePage(),
